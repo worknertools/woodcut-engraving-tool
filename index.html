@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>Type play</title>
+    
+
+  </head>
+    
+  <body>
+  <!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>描边轮廓复刻 Pro - Outline Studio Professional</title>
+    <!-- 引入强大的图像处理引擎 OpenCV.js -->
+    <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
+    <style>
+        :root { --line-color: #333; --bg-ui: #f0f0f0; }
+        body { 
+            background: var(--bg-ui); color: #333; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            margin: 0; padding: 0; display: flex; width: 100vw; height: 100vh; overflow: hidden; 
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .sidebar {
+            width: 360px; height: 100vh; 
+            background: #ffffff; color: #333;
+            display: flex; flex-direction: column; padding: 0; box-sizing: border-box;
+            z-index: 10; flex-shrink: 0;
+        }
+
+        .sidebar-content {
+            flex: 1; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 20px;
+            padding: 30px 25px; scrollbar-width: none;
+        }
+        .sidebar-content::-webkit-scrollbar { display: none; }
+
+        .panel { display: flex; flex-direction: column; gap: 20px; } 
+        .ctrl { display: flex; flex-direction: column; gap: 8px; } 
+
+        .ctrl label { 
+            font-size: 11px; color: #777; display: flex; justify-content: space-between;
+            align-items: center; text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        .ratio-wrapper { display: flex; gap: 10px; align-items: center; }
+        .ratio-text { 
+            cursor: pointer; font-size: 10px; opacity: 0.3; transition: opacity 0.2s; color: #000; font-weight: bold;
+        }
+        .ratio-text.active { opacity: 1; } 
+
+        .file-input-wrapper {
+            position: relative; display: flex; align-items: center; 
+            background: #000; border: 1px solid #000;
+            justify-content: center; box-sizing: border-box;
+        }
+        .file-input-container {
+            padding: 12px; font-size: 11px; flex: 1; cursor: pointer; 
+            color: #fff; text-align: center; text-transform: uppercase;
+        }
+        .clear-btn {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            color: #fff; cursor: pointer; font-size: 14px; font-weight: bold;
+            padding: 5px; line-height: 1; display: none; transition: opacity 0.2s;
+        }
+        .clear-btn:hover { opacity: 0.6; }
+        
+        .btn-white {
+            background: #000; color: #fff; border: none; padding: 12px; 
+            font-size: 10px; cursor: pointer; text-transform: uppercase;
+            transition: opacity 0.2s; box-sizing: border-box;
+        }
+        .btn-white:hover { opacity: 0.8; }
+
+        .btn-random {
+            background: #e0e0e0; border: 1px solid #ccc; padding: 12px; 
+            font-size: 10px; cursor: pointer; text-transform: uppercase;
+            grid-column: 1 / 4; margin-top: 5px; box-sizing: border-box;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none; width: 100%; height: 2px; background: #ddd; margin: 4px 0 16px 0; outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: #333; cursor: pointer;
+        }
+
+        .select-input {
+            width: 100%; padding: 8px; border-radius: 0; border: 1px solid #ccc; 
+            font-size: 11px; font-family: inherit; margin-bottom: 8px; background: #fff;
+            outline: none; cursor: pointer;
+        }
+
+        .color-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
+        .bg-ctrl-group { 
+            display: flex; background: #fff; height: 24px; box-sizing: border-box;
+            align-items: center; width: 100%; border: 1px solid #ccc; overflow: hidden;
+        }
+        .color-block { width: 30px; height: 100%; cursor: pointer; border-right: 1px solid #eee; }
+        
+        .hex-display { 
+            flex: 1; text-align: center; border: none; font-size: 10px; 
+            outline: none; background: transparent; min-width: 0; width: 100%;
+        }
+
+        .footer-text { 
+            padding: 25px 0; text-align: center; 
+            font-size: 9px; color: #bbb; letter-spacing: 1px;
+        }
+
+        .canvas-area { 
+            flex: 1; background: #ffffff; display: flex; 
+            align-items: center; justify-content: center; position: relative; overflow: hidden; 
+        }
+        
+        canvas { 
+            background: #f0f0f0;
+        }
+        #upload { display: none; }
+    </style>
+</head>
+<body>
+<div class="sidebar">
+    <div class="sidebar-content">
+        <div class="panel">
+            <div class="ctrl">
+                <label>
+                    1. 图像源 (IMAGE SOURCE)
+                    <div class="ratio-wrapper">
+                        <span class="ratio-text" data-ratio="3/4">3:4</span>
+                        <span class="ratio-text active" data-ratio="full">满屏</span>
+                    </div>
+                </label>
+                <div class="file-input-wrapper">
+                    <div class="file-input-container" onclick="document.getElementById('upload').click()" id="fileNameDisplay">上传图片 UPLOAD</div>
+                    <div class="clear-btn" id="clearImageBtn" onclick="clearImage(event)">✕</div>
+                </div>
+                <input type="file" id="upload" accept="image/*">
+            </div>
+
+            <div class="ctrl">
+                <label>2. 调色盘 (PALETTE)</label>
+                <div class="color-row">
+                    <div class="ctrl">
+                        <label>油墨 (INK)</label>
+                        <div class="bg-ctrl-group">
+                            <input type="color" id="colorInk" value="#1a1510" style="display:none" oninput="updateColor('Ink')">
+                            <div id="blockInk" class="color-block" style="background-color: #1a1510;" onclick="document.getElementById('colorInk').click()"></div>
+                            <input type="text" class="hex-display" id="hexInk" value="#1A1510" oninput="handleHexInput('Ink')">
+                        </div>
+                    </div>
+                    <div class="ctrl">
+                        <label>纸张 (PAPER)</label>
+                        <div class="bg-ctrl-group">
+                            <input type="color" id="colorPaper" value="#f0f0f0" style="display:none" oninput="updateColor('Paper')">
+                            <div id="blockPaper" class="color-block" style="background-color: #f0f0f0;" onclick="document.getElementById('colorPaper').click()"></div>
+                            <input type="text" class="hex-display" id="hexPaper" value="#F0F0F0" oninput="handleHexInput('Paper')">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ctrl">
+                <label>3. 复印机参数 (PHOTOCOPY PARAMS)</label>
+
+                <label>算法模式 ALGORITHM</label>
+                <select id="filterType" class="select-input">
+                    <option value="mean" selected>硬朗锐利 (Mean)</option>
+                    <option value="gaussian">平滑圆润 (Gaussian)</option>
+                </select>
+
+                <label>线条捕捉范围 BLOCK SIZE <span id="v-blockSize">15</span></label>
+                <input type="range" id="blockSize" min="3" max="99" step="2" value="15">
+                
+                <label>画面干净度 C VALUE <span id="v-cVal">1</span></label>
+                <input type="range" id="cVal" min="1" max="27" step="1" value="1">
+                
+                <label>额外线条加粗 THICKNESS <span id="v-thick">0</span></label>
+                <input type="range" id="thick" min="0" max="5" step="1" value="0">
+
+                <label>原图去噪平滑 SMOOTH <span id="v-blur">0</span></label>
+                <input type="range" id="blur" min="0" max="15" step="1" value="0">
+
+                <label>画面缩放 ZOOM <span id="v-zoom">1.0</span></label>
+                <input type="range" id="zoom" min="0.5" max="2.0" step="0.05" value="1.0">
+            </div>
+
+            <div class="ctrl">
+                <label>4. 导出 (EXPORT)</label>
+                <div class="color-row" style="grid-template-columns: 1fr 1fr 1fr;">
+                    <button class="btn-white" onclick="downloadImage('jpeg', this)">JPG</button>
+                    <button class="btn-white" onclick="downloadImage('png', this)">PNG</button>
+                    <button class="btn-white" onclick="downloadSVG(this)">SVG</button>
+                    <button class="btn-random" onclick="randomPalette()">随机色彩效果</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="footer-text">2026 &copy;Design by Type Play Studio</div>
+</div>
+
+<div class="canvas-area" id="canvasArea">
+    <canvas id="mainCanvas"></canvas>
+</div>
+
+<script>
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d', {willReadFrequently: true});
+    let imgSource = null;
+    let isCvReady = false;
+    
+    function onOpenCvReady() {
+        cv['onRuntimeInitialized'] = () => {
+            isCvReady = true;
+            if (imgSource) {
+                needsOutlineUpdate = true;
+            }
+        };
+    }
+
+    let needsOutlineUpdate = false;
+    let needsColorUpdate = false;
+    let ratioMode = 'full'; 
+    let currentRatio = 1; 
+
+    const patternCanvas = document.createElement('canvas');
+    const patternCtx = patternCanvas.getContext('2d', {willReadFrequently: true});
+
+    const offCanvas = document.createElement('canvas');
+    const offCtx = offCanvas.getContext('2d', {willReadFrequently: true});
+
+    const palettes = [
+        {ink: "#FF0055", paper: "#00FFCC"}, {ink: "#39FF14", paper: "#7000FF"}, 
+        {ink: "#FF3366", paper: "#FFEA00"}, {ink: "#00F0FF", paper: "#FF004D"}, 
+        {ink: "#CCFF00", paper: "#120A8F"}, {ink: "#FF00FF", paper: "#00FF00"}, 
+        {ink: "#FF5E00", paper: "#1A1A1D"}, {ink: "#1F51FF", paper: "#FFB6C1"}, 
+        {ink: "#FFFFFF", paper: "#FF1493"}, {ink: "#00FF99", paper: "#4A00E0"}, 
+        {ink: "#FFE600", paper: "#FF007F"}, {ink: "#000000", paper: "#39FF14"}  
+    ];
+
+    document.querySelectorAll('input[type="range"]').forEach(input => {
+        input.addEventListener('input', () => {
+            const display = document.getElementById('v-' + input.id);
+            if(display) display.innerText = input.value;
+            needsOutlineUpdate = true;
+        });
+    });
+
+    document.getElementById('filterType').addEventListener('change', () => {
+        needsOutlineUpdate = true;
+    });
+
+    document.querySelectorAll('.ratio-text').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.ratio-text').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            ratioMode = btn.dataset.ratio;
+            resizeCanvas();
+        };
+    });
+
+    document.getElementById('upload').onchange = e => {
+        const file = e.target.files[0];
+        if (file) {
+            const img = new Image();
+            img.decoding = 'sync'; 
+            img.onload = () => {
+                imgSource = img;
+                URL.revokeObjectURL(img.src);
+                
+                let fileName = file.name;
+                const dotIdx = fileName.lastIndexOf('.');
+                if (dotIdx > 0) fileName = fileName.substring(0, dotIdx);
+                if (fileName.length > 8) fileName = fileName.substring(0, 8) + '...';
+                
+                document.getElementById('fileNameDisplay').innerText = fileName;
+                document.getElementById('clearImageBtn').style.display = 'block';
+
+                resizeCanvas();
+                renderOutline();
+                needsOutlineUpdate = false;
+                renderColor();
+                needsColorUpdate = false;
+            };
+            img.src = URL.createObjectURL(file);
+        }
+        e.target.value = '';
+    };
+
+    function clearImage(e) {
+        if (e) e.stopPropagation(); 
+        imgSource = null;
+        document.getElementById('upload').value = '';
+        document.getElementById('fileNameDisplay').innerText = '上传图片 UPLOAD';
+        document.getElementById('clearImageBtn').style.display = 'none';
+        
+        needsOutlineUpdate = true; 
+        renderOutline();
+        needsOutlineUpdate = false;
+        renderColor();
+        needsColorUpdate = false;
+    }
+
+    function updateColor(type) {
+        const val = document.getElementById('color' + type).value;
+        document.getElementById('hex' + type).value = val.toUpperCase();
+        document.getElementById('block' + type).style.backgroundColor = val;
+        needsColorUpdate = true;
+    }
+
+    function handleHexInput(type) {
+        let val = document.getElementById('hex' + type).value.trim();
+        if (val.length > 0 && val[0] !== '#') val = '#' + val;
+        let validHex = null;
+        if (/^#[0-9A-Fa-f]{6}$/.test(val)) validHex = val;
+        else if (/^#[0-9A-Fa-f]{3}$/.test(val)) validHex = '#' + val[1]+val[1] + val[2]+val[2] + val[3]+val[3];
+
+        if (validHex) {
+            document.getElementById('color' + type).value = validHex;
+            document.getElementById('block' + type).style.backgroundColor = validHex;
+            needsColorUpdate = true;
+        }
+    }
+
+    function randomPalette() {
+        const p = palettes[Math.floor(Math.random() * palettes.length)];
+        document.getElementById('colorInk').value = p.ink;
+        document.getElementById('colorPaper').value = p.paper;
+        updateColor('Ink');
+        updateColor('Paper');
+    }
+
+    function resizeCanvas() {
+        const area = document.getElementById('canvasArea');
+        const padding = ratioMode === 'full' ? 0 : 60;
+        const maxW = area.clientWidth - padding;
+        const maxH = area.clientHeight - padding;
+        
+        if (ratioMode === 'full') currentRatio = maxW / maxH;
+        else {
+            const parts = ratioMode.split('/');
+            currentRatio = parseFloat(parts[0]) / parseFloat(parts[1]);
+        }
+
+        let w = maxW; let h = w / currentRatio;
+        if (h > maxH) { h = maxH; w = h * currentRatio; }
+
+        canvas.style.width = Math.floor(w) + 'px';
+        canvas.style.height = Math.floor(h) + 'px';
+        needsOutlineUpdate = true;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function renderOutline() {
+        if (!imgSource || !isCvReady) {
+            patternCtx.clearRect(0, 0, patternCanvas.width, patternCanvas.height);
+            needsColorUpdate = true;
+            return;
+        }
+
+        const h = 1200;
+        const w = Math.floor(1200 * currentRatio);
+        
+        if (patternCanvas.width !== w || patternCanvas.height !== h) {
+            patternCanvas.width = w;
+            patternCanvas.height = h;
+            canvas.width = w;
+            canvas.height = h;
+        }
+
+        const sRatio = imgSource.width / imgSource.height;
+        const cRatio = w / h;
+        let dw, dh, dx, dy;
+        if(sRatio > cRatio) {
+            dw = w; dh = Math.round(w / sRatio); dx = 0; dy = (h - dh) / 2;
+        } else {
+            dh = h; dw = Math.round(h * sRatio); dx = (w - dw) / 2; dy = 0;
+        }
+
+        offCanvas.width = dw;
+        offCanvas.height = dh;
+        offCtx.clearRect(0, 0, dw, dh);
+        offCtx.fillStyle = '#ffffff';
+        offCtx.fillRect(0, 0, dw, dh);
+        offCtx.drawImage(imgSource, 0, 0, dw, dh);
+
+        let src = cv.imread(offCanvas);
+        let gray = new cv.Mat();
+        let binary = new cv.Mat();
+        let contours = new cv.MatVector();
+        let hierarchy = new cv.Mat();
+
+        try {
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+
+            // 1. 去噪平滑
+            let blurSize = parseInt(document.getElementById('blur').value);
+            if (blurSize > 0) {
+                let ksize = blurSize % 2 === 0 ? blurSize + 1 : blurSize;
+                cv.GaussianBlur(gray, gray, new cv.Size(ksize, ksize), 0, 0, cv.BORDER_DEFAULT);
+            }
+
+            // 2. 自适应阈值复印机效果 (读取算法模式参数，映射 UI的1 变成 算法所需的4)
+            let blockSize = parseInt(document.getElementById('blockSize').value);
+            if (blockSize % 2 === 0) blockSize += 1;
+            let cVal = parseInt(document.getElementById('cVal').value) + 3;
+            let isGaussian = document.getElementById('filterType').value === 'gaussian';
+            let adaptiveMethod = isGaussian ? cv.ADAPTIVE_THRESH_GAUSSIAN_C : cv.ADAPTIVE_THRESH_MEAN_C;
+
+            cv.adaptiveThreshold(gray, binary, 255, adaptiveMethod, cv.THRESH_BINARY_INV, blockSize, cVal);
+
+            // 【修改点】：确保画面干净度滑到最大时依然保持图形轮廓的完整显示
+            let edges = new cv.Mat();
+            cv.Canny(gray, edges, 80, 160, 3, false);
+            cv.bitwise_or(binary, edges, binary);
+            edges.delete();
+
+            // 3. 线条加粗
+            let thickness = parseInt(document.getElementById('thick').value);
+            if (thickness > 0) {
+                let M = cv.Mat.ones(thickness, thickness, cv.CV_8U);
+                cv.dilate(binary, binary, M, new cv.Point(-1, -1), 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+                M.delete();
+            }
+
+            // 4. 轮廓抓取
+            cv.findContours(binary, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+
+            patternCtx.clearRect(0, 0, w, h);
+            const zoom = parseFloat(document.getElementById('zoom').value);
+            
+            patternCtx.save();
+            patternCtx.translate(w/2, h/2);
+            patternCtx.scale(zoom, zoom); 
+            patternCtx.translate(-w/2, -h/2);
+            patternCtx.translate(dx, dy);
+
+            patternCtx.beginPath();
+            
+            // 边缘噪点过滤参数
+            let margin = 5; 
+            let maxThick = 20;
+
+            for (let i = 0; i < contours.size(); i++) {
+                let cnt = contours.get(i);
+                let rect = cv.boundingRect(cnt);
+                
+                // 剔除任何边缘产生的假边框和碎裂的条状噪点 (不论长短，只要紧贴边缘且极窄即剔除)
+                let isFullBorder = (rect.width >= dw - margin && rect.height >= dh - margin);
+                let isVerticalArtifact = (rect.x <= margin || rect.x + rect.width >= dw - margin) && rect.width <= maxThick;
+                let isHorizontalArtifact = (rect.y <= margin || rect.y + rect.height >= dh - margin) && rect.height <= maxThick;
+                let isBorder = isFullBorder || isVerticalArtifact || isHorizontalArtifact;
+                
+                if (!isBorder) {
+                    let data = cnt.data32S;
+                    if (data.length >= 6) {
+                        patternCtx.moveTo(data[0], data[1]);
+                        for (let j = 2; j < data.length; j += 2) {
+                            patternCtx.lineTo(data[j], data[j+1]);
+                        }
+                        patternCtx.closePath();
+                    }
+                }
+                cnt.delete();
+            }
+
+            // 使用矢量填色还原复印机的块面效果
+            patternCtx.fillStyle = '#000000'; 
+            patternCtx.fill('evenodd'); 
+            patternCtx.restore();
+
+        } catch (err) {
+            console.error("OpenCV Processing Error:", err);
+        } finally {
+            src.delete(); gray.delete(); binary.delete(); 
+            if (contours) contours.delete();
+            if (hierarchy) hierarchy.delete();
+        }
+
+        needsColorUpdate = true;
+    }
+
+    function renderColor() {
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        
+        const inkColor = document.getElementById('colorInk').value;
+        const paperColor = document.getElementById('colorPaper').value;
+
+        if (!imgSource) {
+            ctx.fillStyle = paperColor;
+            ctx.fillRect(0, 0, w, h);
+            return;
+        }
+
+        ctx.fillStyle = inkColor;
+        ctx.fillRect(0, 0, w, h);
+        
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(patternCanvas, 0, 0);
+        
+        ctx.globalCompositeOperation = 'destination-over';
+        ctx.fillStyle = paperColor;
+        ctx.fillRect(0, 0, w, h);
+        
+        ctx.globalCompositeOperation = 'source-over';
+    }
+
+    function loop() {
+        if (needsOutlineUpdate) {
+            renderOutline();
+            needsOutlineUpdate = false;
+            needsColorUpdate = false; 
+            renderColor();
+        } else if (needsColorUpdate) {
+            renderColor();
+            needsColorUpdate = false;
+        }
+        requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    // SVG 导出引擎
+    function downloadSVG(btn) {
+        setTimeout(() => {
+            const h = 1200;
+            const w = Math.floor(1200 * currentRatio);
+            
+            const inkColor = document.getElementById('colorInk').value;
+            const paperColor = document.getElementById('colorPaper').value;
+            const zoom = parseFloat(document.getElementById('zoom').value);
+
+            let svgPaths = [];
+            let dx = 0, dy = 0;
+
+            if (imgSource && isCvReady) {
+                const sRatio = imgSource.width / imgSource.height;
+                const cRatio = w / h;
+                let dw, dh;
+                if(sRatio > cRatio) {
+                    dw = w; dh = Math.round(w / sRatio); dx = 0; dy = (h - dh) / 2;
+                } else {
+                    dh = h; dw = Math.round(h * sRatio); dx = (w - dw) / 2; dy = 0;
+                }
+
+                const expOffCanvas = document.createElement('canvas');
+                expOffCanvas.width = dw;
+                expOffCanvas.height = dh;
+                const expOffCtx = expOffCanvas.getContext('2d', {willReadFrequently: true});
+
+                expOffCtx.fillStyle = '#ffffff';
+                expOffCtx.fillRect(0, 0, dw, dh);
+                expOffCtx.drawImage(imgSource, 0, 0, dw, dh);
+
+                let src = cv.imread(expOffCanvas);
+                let gray = new cv.Mat();
+                let binary = new cv.Mat();
+                let contours = new cv.MatVector();
+                let hierarchy = new cv.Mat();
+
+                try {
+                    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+                    
+                    let blurSize = parseInt(document.getElementById('blur').value);
+                    if (blurSize > 0) {
+                        let ksize = blurSize % 2 === 0 ? blurSize + 1 : blurSize;
+                        cv.GaussianBlur(gray, gray, new cv.Size(ksize, ksize), 0, 0, cv.BORDER_DEFAULT);
+                    }
+
+                    let blockSize = parseInt(document.getElementById('blockSize').value);
+                    if (blockSize % 2 === 0) blockSize += 1;
+                    let cVal = parseInt(document.getElementById('cVal').value) + 3;
+                    let isGaussian = document.getElementById('filterType').value === 'gaussian';
+                    let adaptiveMethod = isGaussian ? cv.ADAPTIVE_THRESH_GAUSSIAN_C : cv.ADAPTIVE_THRESH_MEAN_C;
+
+                    cv.adaptiveThreshold(gray, binary, 255, adaptiveMethod, cv.THRESH_BINARY_INV, blockSize, cVal);
+
+                    // 【修改点】：确保画面干净度滑到最大时依然保持图形轮廓的完整显示
+                    let edges = new cv.Mat();
+                    cv.Canny(gray, edges, 80, 160, 3, false);
+                    cv.bitwise_or(binary, edges, binary);
+                    edges.delete();
+
+                    let thickness = parseInt(document.getElementById('thick').value);
+                    if (thickness > 0) {
+                        let M = cv.Mat.ones(thickness, thickness, cv.CV_8U);
+                        cv.dilate(binary, binary, M, new cv.Point(-1, -1), 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+                        M.delete();
+                    }
+
+                    cv.findContours(binary, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+
+                    let margin = 5;
+                    let maxThick = 20;
+
+                    for (let i = 0; i < contours.size(); i++) {
+                        let contour = contours.get(i);
+                        let rect = cv.boundingRect(contour);
+                        
+                        let isFullBorder = (rect.width >= dw - margin && rect.height >= dh - margin);
+                        let isVerticalArtifact = (rect.x <= margin || rect.x + rect.width >= dw - margin) && rect.width <= maxThick;
+                        let isHorizontalArtifact = (rect.y <= margin || rect.y + rect.height >= dh - margin) && rect.height <= maxThick;
+                        let isBorder = isFullBorder || isVerticalArtifact || isHorizontalArtifact;
+                        
+                        if (!isBorder) {
+                            let data = contour.data32S; 
+                            if (data.length >= 6) { 
+                                let d = `M${data[0]},${data[1]}`;
+                                for (let j = 2; j < data.length; j += 2) {
+                                    d += `L${data[j]},${data[j+1]}`;
+                                }
+                                d += "Z";
+                                svgPaths.push(d);
+                            }
+                        }
+                        contour.delete();
+                    }
+                } catch (err) {
+                    console.error(err);
+                } finally {
+                    src.delete(); gray.delete(); binary.delete();
+                    if (contours) contours.delete(); 
+                    if (hierarchy) hierarchy.delete();
+                }
+            }
+
+            let pathsStr = svgPaths.length > 0 
+                ? `<g transform="translate(${w/2}, ${h/2}) scale(${zoom}) translate(${-w/2}, ${-h/2}) translate(${dx}, ${dy})">
+        <path fill="${inkColor}" fill-rule="evenodd" d="${svgPaths.join('')}" />
+    </g>` 
+                : '';
+
+            let svgStr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">
+    <rect width="100%" height="100%" fill="${paperColor}" />
+    ${pathsStr}
+</svg>`;
+
+            const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+            const link = document.createElement('a');
+            link.download = `Photocopy_Art_Vector_${Date.now()}.svg`;
+            link.href = URL.createObjectURL(blob);
+            // 【修改点】：为了兼容各版本 Safari 和 Chrome 安全机制，将 a 标签加入 DOM 并触发
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(link.href), 1000); 
+
+        }, 50);
+    }
+
+    // A3 高清引擎导出
+    function downloadImage(format, btn) {
+        setTimeout(() => {
+            let expW, expH;
+            if (currentRatio > 1) { 
+                expW = 4960;
+                expH = Math.floor(4960 / currentRatio);
+            } else { 
+                expH = 4960;
+                expW = Math.floor(4960 * currentRatio);
+            }
+
+            const expCanvas = document.createElement('canvas');
+            expCanvas.width = expW;
+            expCanvas.height = expH;
+            const expCtx = expCanvas.getContext('2d');
+
+            const inkColor = document.getElementById('colorInk').value;
+            const paperColor = document.getElementById('colorPaper').value;
+
+            if (format === 'jpeg') {
+                expCtx.fillStyle = paperColor;
+                expCtx.fillRect(0, 0, expW, expH);
+            } else {
+                expCtx.clearRect(0, 0, expW, expH);
+            }
+
+            if (imgSource && isCvReady) {
+                const scale = expH / 1200; 
+
+                const sRatio = imgSource.width / imgSource.height;
+                const cRatio = expW / expH;
+                let dw, dh, dx, dy;
+                if(sRatio > cRatio) {
+                    dw = expW; dh = Math.round(expW / sRatio); dx = 0; dy = (expH - dh) / 2;
+                } else {
+                    dh = expH; dw = Math.round(expH * sRatio); dx = (expW - dw) / 2; dy = 0;
+                }
+                
+                const expOffCanvas = document.createElement('canvas');
+                expOffCanvas.width = dw;
+                expOffCanvas.height = dh;
+                const expOffCtx = expOffCanvas.getContext('2d', {willReadFrequently: true});
+
+                expOffCtx.fillStyle = '#ffffff';
+                expOffCtx.fillRect(0, 0, dw, dh);
+                expOffCtx.drawImage(imgSource, 0, 0, dw, dh);
+
+                let src = cv.imread(expOffCanvas);
+                let gray = new cv.Mat();
+                let binary = new cv.Mat();
+                let contours = new cv.MatVector();
+                let hierarchy = new cv.Mat();
+
+                try {
+                    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+
+                    let blurSize = Math.round(parseInt(document.getElementById('blur').value) * scale);
+                    if (blurSize > 0) {
+                        let ksize = blurSize % 2 === 0 ? blurSize + 1 : blurSize;
+                        cv.GaussianBlur(gray, gray, new cv.Size(ksize, ksize), 0, 0, cv.BORDER_DEFAULT);
+                    }
+
+                    let blockSize = Math.round(parseInt(document.getElementById('blockSize').value) * scale);
+                    if (blockSize < 3) blockSize = 3;
+                    if (blockSize % 2 === 0) blockSize += 1;
+                    let cVal = parseInt(document.getElementById('cVal').value) + 3;
+                    let isGaussian = document.getElementById('filterType').value === 'gaussian';
+                    let adaptiveMethod = isGaussian ? cv.ADAPTIVE_THRESH_GAUSSIAN_C : cv.ADAPTIVE_THRESH_MEAN_C;
+
+                    cv.adaptiveThreshold(gray, binary, 255, adaptiveMethod, cv.THRESH_BINARY_INV, blockSize, cVal);
+
+                    // 【修改点】：确保画面干净度滑到最大时依然保持图形轮廓的完整显示
+                    let edges = new cv.Mat();
+                    cv.Canny(gray, edges, 80, 160, 3, false);
+                    cv.bitwise_or(binary, edges, binary);
+                    edges.delete();
+
+                    let thickness = Math.round(parseInt(document.getElementById('thick').value) * scale);
+                    if (thickness > 0) {
+                        let M = cv.Mat.ones(thickness, thickness, cv.CV_8U);
+                        cv.dilate(binary, binary, M, new cv.Point(-1, -1), 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+                        M.delete();
+                    }
+
+                    cv.findContours(binary, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+
+                    const zoom = parseFloat(document.getElementById('zoom').value);
+                    expCtx.save();
+                    expCtx.translate(expW/2, expH/2);
+                    expCtx.scale(zoom, zoom);
+                    expCtx.translate(-expW/2, -expH/2);
+                    expCtx.translate(dx, dy);
+
+                    expCtx.beginPath();
+                    
+                    let margin = Math.max(5, 5 * scale);
+                    let maxThick = Math.max(20, 20 * scale);
+                    
+                    for (let i = 0; i < contours.size(); i++) {
+                        let cnt = contours.get(i);
+                        let rect = cv.boundingRect(cnt);
+                        
+                        let isFullBorder = (rect.width >= dw - margin && rect.height >= dh - margin);
+                        let isVerticalArtifact = (rect.x <= margin || rect.x + rect.width >= dw - margin) && rect.width <= maxThick;
+                        let isHorizontalArtifact = (rect.y <= margin || rect.y + rect.height >= dh - margin) && rect.height <= maxThick;
+                        let isBorder = isFullBorder || isVerticalArtifact || isHorizontalArtifact;
+                        
+                        if (!isBorder) {
+                            let data = cnt.data32S;
+                            if (data.length >= 6) {
+                                expCtx.moveTo(data[0], data[1]);
+                                for (let j = 2; j < data.length; j += 2) {
+                                    expCtx.lineTo(data[j], data[j+1]);
+                                }
+                                expCtx.closePath();
+                            }
+                        }
+                        cnt.delete();
+                    }
+
+                    expCtx.fillStyle = inkColor;
+                    expCtx.fill('evenodd');
+                    expCtx.restore();
+
+                } catch (err) {
+                    console.error("High-res Processing Error:", err);
+                } finally {
+                    src.delete(); gray.delete(); binary.delete();
+                    if (contours) contours.delete();
+                    if (hierarchy) hierarchy.delete();
+                }
+            }
+
+            expCanvas.toBlob(blob => {
+                if (blob) {
+                    const link = document.createElement('a');
+                    link.download = `Photocopy_Art_A3HD_${Date.now()}.${format === 'jpeg' ? 'jpg' : 'png'}`;
+                    link.href = URL.createObjectURL(blob);
+                    // 【修改点】：为了兼容各版本 Safari 和 Chrome 安全机制，将 a 标签加入 DOM 并触发
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    setTimeout(() => URL.revokeObjectURL(link.href), 1000); 
+                }
+            }, `image/${format}`, 1.0);
+
+        }, 50);
+    }
+</script>
+</body>
+</html>
+    
+  </body>
+  
+</html>
